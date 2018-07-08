@@ -7,7 +7,6 @@ android:
   components:
     - build-tools-27.0.3
     - android-22
-    - android-23
     - sys-img-armeabi-v7a-android-22
     - android-27
     - extra-android-m2repository
