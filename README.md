@@ -1,4 +1,4 @@
-## AndroidHttpCapture网络诊断工具<br>
+## AndroidHttpCapture网络诊断工具      [![Travis](https://img.shields.io/travis/rust-lang/rust.svg)](https://travis-ci.org/JZ-Darkal/AndroidHttpCapture)<br>
 是一款针对于移动流量劫持而开发的手机抓包软件，可以当作是Android版的‘Fiddler’<br>
 主要功能包括：手机端抓包、PING/DNS/TraceRoute诊断、抓包HAR数据上传分享<br>
 使用前请确保手机HTTP代理的关闭<br><br>
@@ -61,6 +61,9 @@ schema的协议格式为：jdhttpmonitor://webview?param={'url'='http://www.dark
 
 #### 如果觉得工具好用的话请多多star以及Pull requests<br>支持我喝杯咖啡请扫描下面的二维码，谢谢(ง •̀_•́)ง<br>
 ![image](http://h5.darkal.cn/har/guide/img/code.jpg)<br><br>
+
+#### 相关技术交流可以加入QQ群：816839175<br>
+![image](http://h5.darkal.cn/har/guide/img/qq.jpg)<br><br>
 
 ### 致谢<br>
 AndroidHttpCapture基于Netty、browsermob-proxy来实现核心抓包的功能<br>

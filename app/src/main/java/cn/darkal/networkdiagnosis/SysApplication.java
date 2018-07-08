@@ -6,10 +6,7 @@ import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.multidex.MultiDexApplication;
 import android.util.Log;
-
 import com.tencent.bugly.Bugly;
-import com.tencent.bugly.crashreport.CrashReport;
-
 import net.gotev.uploadservice.UploadService;
 import net.lightbody.bmp.BrowserMobProxy;
 import net.lightbody.bmp.BrowserMobProxyServer;
@@ -38,7 +35,7 @@ public class SysApplication extends MultiDexApplication {
     public static Boolean isInitProxy = false;
     public static int proxyPort = 8888;
     public BrowserMobProxy proxy;
-    public List<ResponseFilterRule> ruleList;
+    public List<ResponseFilterRule> ruleList = new ArrayList<>();
 
     @Override
     public void onCreate() {
@@ -46,9 +43,8 @@ public class SysApplication extends MultiDexApplication {
         initProxy();
         // Gradle automatically generates proper variable as below.
         UploadService.NAMESPACE = BuildConfig.APPLICATION_ID;
-        CrashReport.UserStrategy strategy = new CrashReport.UserStrategy(getApplicationContext());
-        strategy.setAppChannel("GitHub");
-        Bugly.init(getApplicationContext(), "db9f598223", true);
+
+        Bugly.init(getApplicationContext(), "db9f598223", false);
     }
 
     public void initProxy() {

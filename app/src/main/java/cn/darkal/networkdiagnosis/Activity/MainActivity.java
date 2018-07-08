@@ -63,8 +63,6 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
-import java.security.KeyStore;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -85,7 +83,7 @@ import cn.darkal.networkdiagnosis.Fragment.WebViewFragment;
 import cn.darkal.networkdiagnosis.R;
 import cn.darkal.networkdiagnosis.SysApplication;
 import cn.darkal.networkdiagnosis.Utils.DeviceUtils;
-import cn.darkal.networkdiagnosis.Utils.FileUtils;
+import cn.darkal.networkdiagnosis.Utils.FileUtil;
 import cn.darkal.networkdiagnosis.Utils.SharedPreferenceUtils;
 import cn.darkal.networkdiagnosis.Utils.ZipUtils;
 import cn.darkal.networkdiagnosis.View.LoadingDialog;
@@ -377,35 +375,47 @@ public class MainActivity extends AppCompatActivity implements BackHandledInterf
                 Toast.makeText(MainActivity.this, "请等待程序初始化完成", Toast.LENGTH_LONG).show();
                 return true;
             }
-            if (id == R.id.nav_camera) {
-                Intent intent = new Intent(MainActivity.this, QrCodeScanActivity.class);
-                startActivity(intent);
-            } else if (id == R.id.nav_gallery) {
-                switchContent(WebViewFragment.getInstance());
-            }
-//            else if (id == R.id.nav_preview) {
-//                switchContent(PreviewFragment.getInstance());
-//            }
-            else if (id == R.id.nav_slideshow) {
-                switchContent(NetworkFragment.getInstance());
-            } else if (id == R.id.nav_manage) {
-                Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-                startActivity(intent);
-            } else if (id == R.id.nav_ua) {
-                showUaDialog();
-            } else if (id == R.id.nav_modify) {
-                if(shp.getBoolean("enable_filter", false)) {
-                    Intent intent = new Intent(MainActivity.this, ChangeFilterActivity.class);
+
+            switch (id) {
+                case R.id.nav_camera: {
+                    Intent intent = new Intent(MainActivity.this, QrCodeScanActivity.class);
                     startActivity(intent);
-                }else {
-                    Toast.makeText(MainActivity.this, "请前往设置启用注入功能", Toast.LENGTH_LONG).show();
+                    break;
                 }
-            } else if (id == R.id.nav_cosole) {
-                showLogDialog();
-            } else if (id == R.id.nav_host) {
-                showHostDialog();
-            } else if (id == R.id.nav_page) {
-                createPage();
+                case R.id.nav_gallery:
+                    switchContent(WebViewFragment.getInstance());
+                    break;
+                case R.id.nav_preview:
+                    switchContent(PreviewFragment.getInstance());
+                    break;
+                case R.id.nav_slideshow:
+                    switchContent(NetworkFragment.getInstance());
+                    break;
+                case R.id.nav_manage: {
+                    Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+                    startActivity(intent);
+                    break;
+                }
+                case R.id.nav_ua:
+                    showUaDialog();
+                    break;
+                case R.id.nav_modify:
+                    if (shp.getBoolean("enable_filter", false)) {
+                        Intent intent = new Intent(MainActivity.this, ChangeFilterActivity.class);
+                        startActivity(intent);
+                    } else {
+                        Toast.makeText(MainActivity.this, "请前往设置启用注入功能", Toast.LENGTH_LONG).show();
+                    }
+                    break;
+                case R.id.nav_cosole:
+                    showLogDialog();
+                    break;
+                case R.id.nav_host:
+                    showHostDialog();
+                    break;
+                case R.id.nav_page:
+                    createPage();
+                    break;
             }
 
             DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -463,27 +473,34 @@ public class MainActivity extends AppCompatActivity implements BackHandledInterf
         final String CERTIFICATE_RESOURCE = Environment.getExternalStorageDirectory() + "/har/littleproxy-mitm.pem";
         Boolean isInstallCert = SharedPreferenceUtils.getBoolean(this, "isInstallNewCert", false);
 
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    byte[] keychainBytes;
+
+                    FileInputStream is = null;
+                    try {
+                        is = new FileInputStream(CERTIFICATE_RESOURCE);
+                        keychainBytes = new byte[is.available()];
+                        is.read(keychainBytes);
+                    } finally {
+                        IOUtils.closeQuietly(is);
+                    }
+
+                    Intent intent = KeyChain.createInstallIntent();
+                    intent.putExtra(KeyChain.EXTRA_CERTIFICATE, keychainBytes);
+                    intent.putExtra(KeyChain.EXTRA_NAME, "NetworkDiagnosis CA Certificate");
+                    startActivityForResult(intent, 3);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
         if (!isInstallCert) {
             Toast.makeText(this, "必须安装证书才可实现HTTPS抓包", Toast.LENGTH_LONG).show();
-            try {
-                byte[] keychainBytes;
-
-                FileInputStream is = null;
-                try {
-                    is = new FileInputStream(CERTIFICATE_RESOURCE);
-                    keychainBytes = new byte[is.available()];
-                    is.read(keychainBytes);
-                } finally {
-                    IOUtils.closeQuietly(is);
-                }
-
-                Intent intent = KeyChain.createInstallIntent();
-                intent.putExtra(KeyChain.EXTRA_CERTIFICATE, keychainBytes);
-                intent.putExtra(KeyChain.EXTRA_NAME, "NetworkDiagnosis CA Certificate");
-                startActivityForResult(intent, 3);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            FileUtil.checkPermission(this,runnable);
         }
     }
 
@@ -643,41 +660,49 @@ public class MainActivity extends AppCompatActivity implements BackHandledInterf
 
     public void createZip(final Runnable callback) {
         showLoading("打包中");
-        new Thread(new Runnable() {
+
+        Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                try {
-                    final Har har = getFiltedHar();
-                    final File saveHarFile = new File(Environment.getExternalStorageDirectory() + "/har/test.har");
-                    har.writeTo(saveHarFile);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            final Har har = getFiltedHar();
+                            final File saveHarFile = new File(Environment.getExternalStorageDirectory() + "/har/test.har");
+                            har.writeTo(saveHarFile);
 
-                    ZipUtils.zip(Environment.getExternalStorageDirectory() + "/har",
-                            Environment.getExternalStorageDirectory() + "/test.zip");
+                            ZipUtils.zip(Environment.getExternalStorageDirectory() + "/har",
+                                    Environment.getExternalStorageDirectory() + "/test.zip");
 
-                    rootView.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            Snackbar.make(rootView, "HAR文件已保存至" + saveHarFile.getPath() + " 共计："
-                                    + har.getLog().getEntries().size() + "个请求", Snackbar.LENGTH_LONG)
-                                    .setAction("Action", null).show();
+                            rootView.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Snackbar.make(rootView, "HAR文件已保存至" + saveHarFile.getPath() + " 共计："
+                                            + har.getLog().getEntries().size() + "个请求", Snackbar.LENGTH_LONG)
+                                            .setAction("Action", null).show();
+                                }
+                            });
+
+                            MainActivity.this.runOnUiThread(callback);
+                        } catch (Exception e) {
+                            rootView.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Snackbar.make(rootView, "HAR文件保存失败", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                                }
+                            });
+                            CrashReport.postCatchedException(e);
+                            e.printStackTrace();
+                        } finally {
+                            dismissLoading();
                         }
-                    });
-
-                    MainActivity.this.runOnUiThread(callback);
-                } catch (Exception e) {
-                    rootView.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            Snackbar.make(rootView, "HAR文件保存失败", Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                        }
-                    });
-                    CrashReport.postCatchedException(e);
-                    e.printStackTrace();
-                } finally {
-                    dismissLoading();
-                }
+                    }
+                }).start();
             }
-        }).start();
+        };
+
+        FileUtil.checkPermission(this,runnable);
     }
 
     public void shareZip() {
@@ -702,12 +727,12 @@ public class MainActivity extends AppCompatActivity implements BackHandledInterf
 
     public class MyUploadDelegate implements UploadStatusDelegate {
         @Override
-        public void onProgress(UploadInfo uploadInfo) {
+        public void onProgress(Context context, UploadInfo uploadInfo) {
             Log.e("~~~~", uploadInfo.getProgressPercent() + "");
         }
 
         @Override
-        public void onError(UploadInfo uploadInfo, Exception exception) {
+        public void onError(Context context, UploadInfo uploadInfo, ServerResponse serverResponse, Exception exception) {
             dismissLoading();
             Snackbar.make(rootView, "上传失败！", Snackbar.LENGTH_LONG).setAction("Action", null).show();
             exception.printStackTrace();
@@ -715,7 +740,7 @@ public class MainActivity extends AppCompatActivity implements BackHandledInterf
         }
 
         @Override
-        public void onCompleted(UploadInfo uploadInfo, ServerResponse serverResponse) {
+        public void onCompleted(Context context, UploadInfo uploadInfo, ServerResponse serverResponse) {
             try {
                 JSONObject jsonObject = new JSONObject(serverResponse.getBodyAsString());
                 if (jsonObject.getInt("errId") == 0) {
@@ -733,7 +758,7 @@ public class MainActivity extends AppCompatActivity implements BackHandledInterf
         }
 
         @Override
-        public void onCancelled(UploadInfo uploadInfo) {
+        public void onCancelled(Context context, UploadInfo uploadInfo) {
             dismissLoading();
         }
     }
@@ -791,7 +816,7 @@ public class MainActivity extends AppCompatActivity implements BackHandledInterf
                     public void run() {
                         String serverUrl = UPLOAD_URL + "?code=" + edtInput.getText() + "&os=Android&module=" + Build.MODEL.replace(" ", "") + "&key=" + key;
                         showLoading("上传中");
-                        FileUtils.uploadFiles(MainActivity.this, new MyUploadDelegate(), serverUrl, "upload", Environment.getExternalStorageDirectory() + "/test.zip");
+                        FileUtil.uploadFiles(MainActivity.this, new MyUploadDelegate(), serverUrl, "upload", Environment.getExternalStorageDirectory() + "/test.zip");
                     }
                 };
                 createZip(runnable);
